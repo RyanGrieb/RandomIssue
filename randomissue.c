@@ -11,9 +11,9 @@ JSON-PARSER:
 #include <stdio.h>
 #include <stdlib.h>
 
-//To compile: gcc -g -o RND randomissue.c -lcurl -ljson-c
+//To compile: gcc -g -o RandomIssue randomissue.c -lcurl -ljson-c
 
-int main(int argc, char **argv)
+int main()
 {
     //!!!!!!!!!!!!!!! REMEBER TO FREEEEEE OUR STUFF
     char *repoPath;
@@ -41,8 +41,8 @@ int main(int argc, char **argv)
 
         struct json_object *current_json = getJsonFromURL(curl, res, index, url, "rhin123");
 
-        if (json_object_array_length(current_json) > 0) //NOTE: we check if our array is bigger than 0.
-            json_list = json_object_array_concat(json_list, current_json);
+        if (json_object_array_length(current_json) > 0)
+            json_list = concatJson(json_list, current_json);
         else
             parse = 0;
 
@@ -52,6 +52,12 @@ int main(int argc, char **argv)
     if (!json_list)
     {
         //TODO: BETTER ERROR CHECKING.
+        /*
+        Errors to check:
+        - No errors on repo (Empty json)
+        - Repo not found
+        - API Limit reached
+         */
         fprintf(stderr, "Error: JSON is NULL. Our API Limit has probally been reached.\n");
         return 0;
     }
@@ -109,7 +115,7 @@ void printGitIssue(GitIssue issue)
     //printf("%s\n", json_object_get_string(issue.body));
 }
 
-struct json_object *json_object_array_concat(struct json_object *array1, struct json_object *array2)
+struct json_object *concatJson(struct json_object *array1, struct json_object *array2)
 {
     struct json_object *array3 = json_object_new_array();
     if (!array3)
