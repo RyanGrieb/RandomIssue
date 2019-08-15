@@ -3,6 +3,8 @@ LIBRARY/DOCS HELP:
 https://curl.haxx.se
 
 JSON-PARSER:
+https://github.com/json-c/json-c
+https://stackoverflow.com/questions/36998026/append-json-object-arrays-in-c-using-jsonc-library
 */
 
 #include "randomissue.h"
@@ -16,7 +18,7 @@ JSON-PARSER:
 int main()
 {
     //!!!!!!!!!!!!!!! REMEBER TO FREEEEEE OUR STUFF
-    char *repoPath;
+    char *repoPath; //free?
 
     printf("Enter the repo & path with (/ included) 'author/name': ");
     scanf("%s", repoPath);
@@ -26,7 +28,7 @@ int main()
     curl = curl_easy_init();
 
     if (!curl)
-        return 0;
+        return 1;
 
     struct json_object *json_list = NULL;
 
@@ -35,38 +37,61 @@ int main()
     int parse = 1, index = 0;
     while (parse)
     {
-        char *url;
+        char *url; //free?
         if (0 > asprintf(&url, "https://api.github.com/repos/%s/issues?state=open&page=%d&per_page=100", repoPath, index + 1))
-            return 0;
+            return 1;
 
-        struct json_object *current_json = getJsonFromURL(curl, res, index, url, "rhin123");
+        struct json_object *current_json = getJsonFromURL(curl, res, index, url, "rhin123"); //Should be different?
 
         if (json_object_array_length(current_json) > 0)
             json_list = concatJson(json_list, current_json);
         else
+        {
+            free(url);
+
+            if (checkJsonErrors(json_list, current_json))
+                return 1;
+
             parse = 0;
-
+            //            free(current_json);
+        }
         index++;
-    }
-
-    if (!json_list)
-    {
-        //TODO: BETTER ERROR CHECKING.
-        /*
-        Errors to check:
-        - No errors on repo (Empty json)
-        - Repo not found
-        - API Limit reached
-         */
-        fprintf(stderr, "Error: JSON is NULL. Our API Limit has probally been reached.\n");
-        return 0;
     }
 
     printGitIssue(getRandomIssue(json_list));
 
     curl_easy_cleanup(curl);
     free(json_list);
-    return 1;
+    free(repoPath);
+    return 0;
+}
+
+//TODO: BETTER ERROR CHECKING.
+/*
+        Errors to check:
+        - No errors on repo (Empty json)
+        - Repo not found. DONE
+        - API Limit reached. DONE
+*/
+int checkJsonErrors(json_object *json_list, json_object *parsed_json)
+{
+    json_object *json_message;
+    int exists;
+
+    if (json_object_object_get_ex(parsed_json, "message", &json_message))
+    {
+        fprintf(stderr, "Error: %s\n", json_object_get_string(json_message));
+        return 1;
+    }
+
+    if (!json_list)
+    {
+        fprintf(stderr, "Error: No issues found\n");
+        return 1;
+    }
+
+    free(parsed_json);
+    return 0;
 }
 
 struct json_object *getJsonFromURL(CURL *curl, CURLcode res, int index, char *url, char *username)
@@ -74,12 +99,12 @@ struct json_object *getJsonFromURL(CURL *curl, CURLcode res, int index, char *ur
     struct json_object *parsed_json;
 
     String s;
-    init_string(&s);
+    initString(&s);
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, username); //TODO: Probally should ask user to specifiy username.
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, username);
 
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writefunc);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeToString);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &s);
     res = curl_easy_perform(curl);
 
@@ -94,7 +119,7 @@ struct json_object *getJsonFromURL(CURL *curl, CURLcode res, int index, char *ur
 GitIssue getRandomIssue(struct json_object *parsed_json)
 {
     srand(time(0));
-    int rnd_number = rand() % json_object_array_length(parsed_json) + 0;
+    int rnd_number = rand() % json_object_array_length(parsed_json);
     struct json_object *current_issue;
     current_issue = json_object_array_get_idx(parsed_json, rnd_number);
 
@@ -112,6 +137,7 @@ void printGitIssue(GitIssue issue)
 {
     printf("Issue #%d: %s\n", json_object_get_int(issue.number), json_object_get_string(issue.html_url));
     printf("%s\n", json_object_get_string(issue.title));
+    //TODO: Create new string from this that is only a certain length.
     //printf("%s\n", json_object_get_string(issue.body));
 }
 
@@ -141,25 +167,25 @@ struct json_object *concatJson(struct json_object *array1, struct json_object *a
     return array3;
 }
 
-void init_string(String *s)
+void initString(String *s)
 {
     s->len = 0;
     s->ptr = malloc(s->len + 1);
     if (s->ptr == NULL)
     {
-        fprintf(stderr, "malloc() failed\n");
+        fprintf(stderr, "Error: malloc() failed\n");
         exit(EXIT_FAILURE);
     }
     s->ptr[0] = '\0';
 }
 
-size_t writefunc(void *ptr, size_t size, size_t nmemb, String *s)
+size_t writeToString(void *ptr, size_t size, size_t nmemb, String *s)
 {
     size_t new_len = s->len + size * nmemb;
     s->ptr = realloc(s->ptr, new_len + 1);
     if (s->ptr == NULL)
     {
-        fprintf(stderr, "realloc() failed\n");
+        fprintf(stderr, "Error: realloc() failed\n");
         exit(EXIT_FAILURE);
     }
     memcpy(s->ptr + s->len, ptr, size * nmemb);

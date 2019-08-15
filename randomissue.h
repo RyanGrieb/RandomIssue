@@ -25,9 +25,10 @@ typedef struct GitIssue
     json_object *number;
 } GitIssue;
 
+int checkJsonErrors(json_object *json_list, struct json_object *parsed_json);
 struct json_object *getJsonFromURL(CURL *curl, CURLcode res, int index, char *url, char *username);
 GitIssue getRandomIssue(struct json_object *parsed_json);
 void printGitIssue(GitIssue issue);
-void init_string(String *s);
-struct json_object *concatJson(struct json_object *array1, struct json_object *array2); //https://stackoverflow.com/questions/36998026/append-json-object-arrays-in-c-using-jsonc-library
-size_t writefunc(void *ptr, size_t size, size_t nmemb, String *s);
+void initString(String *s);
+struct json_object *concatJson(struct json_object *array1, struct json_object *array2);
+size_t writeToString(void *ptr, size_t size, size_t nmemb, String *s);
