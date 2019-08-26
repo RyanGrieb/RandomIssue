@@ -15,15 +15,18 @@ https://stackoverflow.com/questions/36998026/append-json-object-arrays-in-c-usin
 
 //To compile: gcc -g -o RandomIssue randomissue.c -lcurl -ljson-c
 
-int main()
+int main(int argc, char **argv)
 {
-    //!!!!!!!!!!!!!!! REMEBER TO FREEEEEE OUR STUFF
-    char *repoPath; //free?
-
-    printf("Enter the repo & path with (/ included) 'author/name': ");
-    scanf("%s", repoPath);
     CURL *curl;
     CURLcode res;
+
+    if (argc <= 1)
+    {
+        printf("Error: Enter a repo as a parameter\n");
+        return 1;
+    }
+
+    char *repoPath = argv[1];
 
     curl = curl_easy_init();
 
@@ -37,7 +40,7 @@ int main()
     int parse = 1, index = 0;
     while (parse)
     {
-        char *url; //free?
+        char *url;
         if (0 > asprintf(&url, "https://api.github.com/repos/%s/issues?state=open&page=%d&per_page=100", repoPath, index + 1))
             return 1;
 
@@ -47,13 +50,12 @@ int main()
             json_list = concatJson(json_list, current_json);
         else
         {
-            free(url);
-
             if (checkJsonErrors(json_list, current_json))
                 return 1;
 
+            free(current_json);
+            free(url);
             parse = 0;
-            //            free(current_json);
         }
         index++;
     }
@@ -62,17 +64,9 @@ int main()
 
     curl_easy_cleanup(curl);
     free(json_list);
-    free(repoPath);
     return 0;
 }
 
-//TODO: BETTER ERROR CHECKING.
-/*
-        Errors to check:
-        - No errors on repo (Empty json)
-        - Repo not found. DONE
-        - API Limit reached. DONE
-*/
 int checkJsonErrors(json_object *json_list, json_object *parsed_json)
 {
     json_object *json_message;
@@ -90,7 +84,7 @@ int checkJsonErrors(json_object *json_list, json_object *parsed_json)
         return 1;
     }
 
-    free(parsed_json);
+    free(json_message);
     return 0;
 }
 
@@ -130,6 +124,7 @@ GitIssue getRandomIssue(struct json_object *parsed_json)
     json_object_object_get_ex(current_issue, "body", &issue.body);
     json_object_object_get_ex(current_issue, "number", &issue.number);
 
+    free(current_issue);
     return issue;
 }
 
